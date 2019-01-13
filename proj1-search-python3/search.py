@@ -4,7 +4,7 @@
 # educational purposes provided that (1) you do not distribute or publish
 # solutions, (2) you retain this notice, and (3) you provide clear
 # attribution to UC Berkeley, including a link to http://ai.berkeley.edu.
-# 
+#
 # Attribution Information: The Pacman AI projects were developed at UC Berkeley.
 # The core projects and autograders were primarily created by John DeNero
 # (denero@cs.berkeley.edu) and Dan Klein (klein@cs.berkeley.edu).
@@ -72,32 +72,84 @@ def tinyMazeSearch(problem):
     w = Directions.WEST
     return  [s, s, w, s, w, w, s, w]
 
+
+def genericSearch(problem, data_structure, heuristic = None):
+    import copy
+    
+    # This will map the visited nodes to a tuple (parent node loc, successor)
+    parent_graph = dict()
+    
+    # Used to report the result at the end of the search
+    result_queue = util.Queue()
+    
+    # Initialize the stack or queue with the starting state
+    start_state = problem.getStartState()
+    parent_graph[start_state] = None
+    if isinstance(data_structure, util.PriorityQueue):
+        data_structure.push((start_state, None, 0), priority=0)
+    else:
+        data_structure.push((start_state, None, 0))
+        
+    # Iterate while data_structure has something in it
+    end_successor = None
+    while not data_structure.isEmpty():
+        state, successor_val, cost = data_structure.pop()
+
+        # End iteration if we have reached the goal
+        if problem.isGoalState(state):
+            end_successor = successor_val
+            break
+            
+        # Get all potential successors
+        successors = problem.getSuccessors(state)
+        for successor in successors:
+            successor_state = successor[0]
+            cost = successor[2]
+            
+            if successor_state in parent_graph:
+                # This node has been visited. Skip
+                continue
+                
+            # If we have a heuristic, calculate the cost
+            if heuristic:
+                heuristicCost = heuristic(successor_state, problem)
+                cost += heuristicCost
+            
+            # Save the successor to graph, and queue
+            parent_graph[successor_state] = (state, successor_val)
+            
+            # Add the next nodes to the structure
+            if isinstance(data_structure, util.PriorityQueue):
+                data_structure.push((successor_state, successor, cost), priority=cost)
+            else:
+                data_structure.push((successor_state, successor, cost))
+                
+    # Reconstruct the path we took to get here
+    parent_successor = end_successor
+    while parent_successor:
+        result_queue.push(parent_successor)
+        parent_successor = parent_graph[parent_successor[0]][1]
+        
+    steps = [step[1] for step in result_queue.list]
+    return copy.copy(steps)
+
+
 def depthFirstSearch(problem):
     """
     Search the deepest nodes in the search tree first.
-
-    Your search algorithm needs to return a list of actions that reaches the
-    goal. Make sure to implement a graph search algorithm.
-
-    To get started, you might want to try some of these simple commands to
-    understand the search problem that is being passed in:
-
-    print("Start:", problem.getStartState())
-    print("Is the start a goal?", problem.isGoalState(problem.getStartState()))
-    print("Start's successors:", problem.getSuccessors(problem.getStartState()))
     """
-    "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    return genericSearch(problem, util.Stack())
+
 
 def breadthFirstSearch(problem):
     """Search the shallowest nodes in the search tree first."""
-    "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    return genericSearch(problem, util.Queue())
+
 
 def uniformCostSearch(problem):
-    """Search the node of least total cost first."""
-    "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    """Search the shallowest nodes in the search tree first, but incorporate cost"""
+    return genericSearch(problem, util.PriorityQueue())
+
 
 def nullHeuristic(state, problem=None):
     """
@@ -106,10 +158,10 @@ def nullHeuristic(state, problem=None):
     """
     return 0
 
+
 def aStarSearch(problem, heuristic=nullHeuristic):
     """Search the node that has the lowest combined cost and heuristic first."""
-    "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    return genericSearch(problem, util.PriorityQueue(), heuristic)
 
 
 # Abbreviations
