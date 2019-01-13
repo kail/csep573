@@ -286,8 +286,10 @@ class CornersProblem(search.SearchProblem):
                 print('Warning: no food in corner ' + str(corner))
         self._expanded = 0 # DO NOT CHANGE; Number of search nodes expanded
         
+        
         # Please add any code here which you would like to use
         # in initializing the problem
+        self.visualize = True
         self.visited_corners = []
         self._visited, self._visitedlist = {}, []
 
@@ -304,6 +306,13 @@ class CornersProblem(search.SearchProblem):
         Returns whether this search state is a goal state of the problem.
         """
         if all(corner in state[1] or corner == state[0] for corner in self.corners):
+            # For display purposes only
+            if self.visualize:
+                self._visitedlist.append(state[0])
+                import __main__
+                if '_display' in dir(__main__):
+                    if 'drawExpandedCells' in dir(__main__._display): #@UndefinedVariable
+                        __main__._display.drawExpandedCells(self._visitedlist) #@UndefinedVariable
             return True
         return False
 
@@ -330,12 +339,12 @@ class CornersProblem(search.SearchProblem):
             if not self.walls[nextx][nexty]:
                 nextState = ((nextx, nexty), seen_corners)
                 cost = 1  #self.costFn(nextState)
-                successors.append( ( nextState, action, cost) )
+                successors.append(( nextState, action, cost))
             
         self._expanded += 1 # DO NOT CHANGE
         if state not in self._visited:
-            self._visited[state] = True
-            self._visitedlist.append(state)
+            self._visited[state[0]] = True
+            self._visitedlist.append(state[0])
 
         return successors
 
@@ -366,13 +375,34 @@ def cornersHeuristic(state, problem):
     shortest path from the state to a goal of the problem; i.e.  it should be
     admissible (as well as consistent).
     """
+    import itertools
+    
+    def manhattanDistance(xy1, xy2):
+        return abs(xy1[0] - xy2[0]) + abs(xy1[1] - xy2[1])
+    
     corners = problem.corners # These are the corner coordinates
     walls = problem.walls # These are the walls of the maze, as a Grid (game.py)
-
+    
     corners_seen = state[1]
     corners_to_find = [corner for corner in corners if corner not in corners_seen]
     
-    return 0 # Default to trivial solution
+    # Get all permutations of the remaining corners
+    corners_permutations = list(itertools.permutations(corners_to_find))
+    
+    # Add current location to all lists
+    for i in range(len(corners_permutations)):
+        corners_permutations[i] = (state[0],) + corners_permutations[i]
+        
+    min_distance = float('inf')
+    for corner_list in corners_permutations:
+        permutation_distance = 0
+        for i in range(1, len(corner_list)):
+            permutation_distance += manhattanDistance(corner_list[i - 1], corner_list[i])
+            
+        if permutation_distance < min_distance:
+            min_distance = permutation_distance
+        
+    return min_distance
 
 class AStarCornersAgent(SearchAgent):
     "A SearchAgent for FoodSearchProblem using A* and your foodHeuristic"
