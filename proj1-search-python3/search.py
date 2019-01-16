@@ -93,7 +93,7 @@ def genericSearch(problem, data_structure, heuristic = None):
     # Iterate while data_structure has something in it
     end_successor = None
     while not data_structure.isEmpty():
-        state, successor_val, cost = data_structure.pop()
+        state, successor_val, cost_so_far = data_structure.pop()
 
         # End iteration if we have reached the goal
         if problem.isGoalState(state):
@@ -104,25 +104,31 @@ def genericSearch(problem, data_structure, heuristic = None):
         successors = problem.getSuccessors(state)
         for successor in successors:
             successor_state = successor[0]
-            cost = successor[2]
+            step_cost = successor[2]
             
             if successor_state in parent_graph:
                 # This node has been visited. Skip
                 continue
                 
-            # If we have a heuristic, calculate the cost
+            # Update the total cost
+            cost_so_far += step_cost
+            
+            # For uniform search, priority = step_cost at each step
+            priority = step_cost
+            
+            # If we have a heuristic, priority needs to have total cost and s
             if heuristic:
                 heuristicCost = heuristic(successor_state, problem)
-                cost += heuristicCost
+                priority = heuristicCost + cost_so_far
             
             # Save the successor to graph, and queue
             parent_graph[successor_state] = (state, successor_val)
             
             # Add the next nodes to the structure
             if isinstance(data_structure, util.PriorityQueue):
-                data_structure.push((successor_state, successor, cost), priority=cost)
+                data_structure.push((successor_state, successor, cost_so_far), priority=priority)
             else:
-                data_structure.push((successor_state, successor, cost))
+                data_structure.push((successor_state, successor, cost_so_far))
                 
     # Reconstruct the path we took to get here
     parent_successor = end_successor

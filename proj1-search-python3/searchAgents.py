@@ -386,6 +386,39 @@ def cornersHeuristic(state, problem):
     corners_seen = state[1]
     corners_to_find = [corner for corner in corners if corner not in corners_seen]
     
+    min_distance = float('inf')
+    for i in range(len(corners_to_find)):
+        manhattan_distance = manhattanDistance(state[0], corners_to_find[i])
+        
+        if manhattan_distance < min_distance:
+            min_distance = manhattan_distance
+        
+    return min_distance
+
+def cornersHeuristic2(state, problem):
+    """
+    A heuristic for the CornersProblem that you defined.
+
+      state:   The current search state
+               (a data structure you chose in your search problem)
+
+      problem: The CornersProblem instance for this layout.
+
+    This function should always return a number that is a lower bound on the
+    shortest path from the state to a goal of the problem; i.e.  it should be
+    admissible (as well as consistent).
+    """
+    import itertools
+    
+    def manhattanDistance(xy1, xy2):
+        return abs(xy1[0] - xy2[0]) + abs(xy1[1] - xy2[1])
+    
+    corners = problem.corners # These are the corner coordinates
+    walls = problem.walls # These are the walls of the maze, as a Grid (game.py)
+    
+    corners_seen = state[1]
+    corners_to_find = [corner for corner in corners if corner not in corners_seen]
+    
     # Get all permutations of the remaining corners
     corners_permutations = list(itertools.permutations(corners_to_find))
     
