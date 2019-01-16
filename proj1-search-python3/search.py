@@ -165,9 +165,112 @@ def nullHeuristic(state, problem=None):
     return 0
 
 
+def _aStarSearch(problem, heuristic=nullHeuristic):
+    # // The set of nodes already evaluated
+    # closedSet := {}
+    closedSet = set()
+    
+    #
+    # // The set of currently discovered nodes that are not evaluated yet.
+    # // Initially, only the start node is known.
+    # openSet := {start}
+    start_state = problem.getStartState()
+    openQueue = util.PriorityQueue()
+    openQueue.push(start_state, 0)
+    openSet = {start_state}
+    
+    #
+    # // For each node, which node it can most efficiently be reached from.
+    # // If a node can be reached from many nodes, cameFrom will eventually contain the
+    # // most efficient previous step.
+    # cameFrom := an empty map
+    cameFrom = {}
+    
+    #
+    # // For each node, the cost of getting from the start node to that node.
+    # gScore := map with default value of Infinity
+    gScore = {}
+    
+    #
+    # // The cost of going from start to start is zero.
+    # gScore[start] := 0
+    gScore[start_state] = 0
+    
+    #
+    # // For each node, the total cost of getting from the start node to the goal
+    # // by passing by that node. That value is partly known, partly heuristic.
+    # fScore := map with default value of Infinity
+    fScore = {}
+    
+    # function reconstruct_path(cameFrom, current)
+    def reconstruct_path(current):
+        # total_path := {current}
+        total_path = []
+        current = (current, None)
+        # while current in cameFrom.Keys:
+        while current[0] in cameFrom:
+    #       current := cameFrom[current]
+            current = cameFrom[current[0]]
+    #       total_path.append(current)
+            total_path.append(current[1])
+        total_path.reverse()
+        return total_path
+    
+    #
+    # // For the first node, that value is completely heuristic.
+    # fScore[start] := heuristic_cost_estimate(start, goal)
+    fScore[start_state] = heuristic(start_state, problem)
+    
+    #
+    # while openSet is not empty
+    while not openQueue.isEmpty():
+    #   current := the node in openSet having the lowest fScore[] value
+        current_state = openQueue.pop()
+    #   if current = goal
+        if problem.isGoalState(current_state):
+            return reconstruct_path(current_state)
+    #
+    #   openSet.Remove(current) -- done with pop
+        openSet.remove(current_state)
+    
+    #   closedSet.Add(current)
+        closedSet.add(current_state)
+    #
+    
+    #   for each neighbor of current
+        neighbors = problem.getSuccessors(current_state)
+        for neighbor in neighbors:
+
+            if neighbor[0] in closedSet:
+                continue  # Ignore the neighbor which is already evaluated.
+    #
+    #       // The distance from start to a neighbor
+    #       tentative_gScore := gScore[current] + dist_between(current, neighbor)
+            tentative_gScore = gScore[current_state] + neighbor[2]
+    #
+    #       if neighbor not in openSet	// Discover a new node
+            added_to_set = False
+            if neighbor[0] not in openSet:
+                added_to_set = True
+                openSet.add(neighbor[0])
+            elif tentative_gScore >= gScore[neighbor[0]]: # TODO: watch this var!!
+                continue
+    #
+    #       // This path is the best until now. Record it!
+    #       cameFrom[neighbor] := current
+            cameFrom[neighbor[0]] = (current_state, neighbor[1])
+    #       gScore[neighbor] := tentative_gScore
+            gScore[neighbor[0]] = tentative_gScore
+    #       fScore[neighbor] := gScore[neighbor] + heuristic_cost_estimate(neighbor, goal)
+            fScore[neighbor[0]] = gScore[neighbor[0]] + heuristic(neighbor[0], problem)
+            
+            if added_to_set:
+                openQueue.push(neighbor[0], fScore[neighbor[0]])
+
 def aStarSearch(problem, heuristic=nullHeuristic):
     """Search the node that has the lowest combined cost and heuristic first."""
-    return genericSearch(problem, util.PriorityQueue(), heuristic)
+    #return genericSearch(problem, util.PriorityQueue(), heuristic)
+    return _aStarSearch(problem, heuristic)
 
 
 # Abbreviations

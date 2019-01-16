@@ -362,7 +362,7 @@ class CornersProblem(search.SearchProblem):
         return len(actions)
 
 
-def cornersHeuristic(state, problem):
+def cornersHeuristic2(state, problem):
     """
     A heuristic for the CornersProblem that you defined.
 
@@ -395,7 +395,7 @@ def cornersHeuristic(state, problem):
         
     return min_distance
 
-def cornersHeuristic2(state, problem):
+def cornersHeuristic(state, problem):
     """
     A heuristic for the CornersProblem that you defined.
 
