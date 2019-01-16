@@ -364,16 +364,7 @@ class CornersProblem(search.SearchProblem):
 
 def cornersHeuristic2(state, problem):
     """
-    A heuristic for the CornersProblem that you defined.
-
-      state:   The current search state
-               (a data structure you chose in your search problem)
-
-      problem: The CornersProblem instance for this layout.
-
-    This function should always return a number that is a lower bound on the
-    shortest path from the state to a goal of the problem; i.e.  it should be
-    admissible (as well as consistent).
+    Manhattan distance to the closest corner
     """
     import itertools
     
@@ -397,16 +388,24 @@ def cornersHeuristic2(state, problem):
 
 def cornersHeuristic(state, problem):
     """
-    A heuristic for the CornersProblem that you defined.
+    Sum of all manhattan distances to remaining corners. Intended to emulate a sort-of binary search
+    """
+    import itertools
+    
+    def manhattanDistance(xy1, xy2):
+        return abs(xy1[0] - xy2[0]) + abs(xy1[1] - xy2[1])
+    
+    corners = problem.corners # These are the corner coordinates
+    walls = problem.walls # These are the walls of the maze, as a Grid (game.py)
+    
+    corners_seen = state[1]
+    corners_to_find = [corner for corner in corners if corner not in corners_seen]
+    
+    return sum(manhattanDistance(state[0], corner) for corner in corners_to_find)
 
-      state:   The current search state
-               (a data structure you chose in your search problem)
-
-      problem: The CornersProblem instance for this layout.
-
-    This function should always return a number that is a lower bound on the
-    shortest path from the state to a goal of the problem; i.e.  it should be
-    admissible (as well as consistent).
+def cornersHeuristic3(state, problem):
+    """
+    This heuristic computes all possible ways to hit all remaining corners, and chooses the minimal way
     """
     import itertools
     
