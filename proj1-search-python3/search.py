@@ -322,21 +322,19 @@ def _costSearch(problem, heuristic=nullHeuristic):
 
         neighbors = problem.getSuccessors(current_state)
         for neighbor in neighbors:
-            if neighbor[0] == 'G':
-                print('debug')
             if neighbor[0] in closed_set:
                 continue  # Ignore the neighbor which is already evaluated.
 
-            tentative_gScore = global_score[current_state] + neighbor[2]
+            potential_global_score = global_score[current_state] + neighbor[2]
             added_to_set = False
             if neighbor[0] not in open_set:
                 added_to_set = True
                 open_set.add(neighbor[0])
-            elif tentative_gScore >= global_score[neighbor[0]]:
+            elif potential_global_score >= global_score[neighbor[0]]:
                 continue
 
             came_from[neighbor[0]] = (current_state, neighbor[1])
-            global_score[neighbor[0]] = tentative_gScore
+            global_score[neighbor[0]] = potential_global_score
             f_score[neighbor[0]] = global_score[neighbor[0]] + heuristic(neighbor[0], problem)
             
             if added_to_set:
