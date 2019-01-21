@@ -166,110 +166,72 @@ def nullHeuristic(state, problem=None):
 
 
 def _aStarSearch(problem, heuristic=nullHeuristic):
-    # // The set of nodes already evaluated
-    # closedSet := {}
-    closedSet = set()
+    # Map of parent nodes
+    came_from = {}
     
-    #
-    # // The set of currently discovered nodes that are not evaluated yet.
-    # // Initially, only the start node is known.
-    # openSet := {start}
-    start_state = problem.getStartState()
-    openQueue = util.PriorityQueue()
-    openQueue.push(start_state, 0)
-    openSet = {start_state}
-    
-    #
-    # // For each node, which node it can most efficiently be reached from.
-    # // If a node can be reached from many nodes, cameFrom will eventually contain the
-    # // most efficient previous step.
-    # cameFrom := an empty map
-    cameFrom = {}
-    
-    #
-    # // For each node, the cost of getting from the start node to that node.
-    # gScore := map with default value of Infinity
-    gScore = {}
-    
-    #
-    # // The cost of going from start to start is zero.
-    # gScore[start] := 0
-    gScore[start_state] = 0
-    
-    #
-    # // For each node, the total cost of getting from the start node to the goal
-    # // by passing by that node. That value is partly known, partly heuristic.
-    # fScore := map with default value of Infinity
-    fScore = {}
-    
-    # function reconstruct_path(cameFrom, current)
     def reconstruct_path(current):
-        # total_path := {current}
         total_path = []
         current = (current, None)
-        # while current in cameFrom.Keys:
-        while current[0] in cameFrom:
-    #       current := cameFrom[current]
-            current = cameFrom[current[0]]
-    #       total_path.append(current)
+        while current[0] in came_from:
+            current = came_from[current[0]]
             total_path.append(current[1])
         total_path.reverse()
         return total_path
     
-    #
-    # // For the first node, that value is completely heuristic.
-    # fScore[start] := heuristic_cost_estimate(start, goal)
-    fScore[start_state] = heuristic(start_state, problem)
+    # Previously seen nodes
+    closed_set = set()
+
+    start_state = problem.getStartState()
     
-    #
-    # while openSet is not empty
-    while not openQueue.isEmpty():
-    #   current := the node in openSet having the lowest fScore[] value
-        current_state = openQueue.pop()
-    #   if current = goal
+    # Initially, only the start node is known
+    open_queue = util.PriorityQueue()
+    open_queue.push(start_state, 0)
+    
+    # The set of currently discovered nodes that are not evaluated yet.
+    open_set = {start_state}
+    
+    # For each node, the cost of getting from the start node to that node.
+    global_score = {}
+    
+    # The cost of going from start to start is zero.
+    global_score[start_state] = 0
+    
+    # f_score = heuristic + global_score
+    f_score = {}
+    f_score[start_state] = heuristic(start_state, problem)
+    
+    while not open_queue.isEmpty():
+        current_state = open_queue.pop()
         if problem.isGoalState(current_state):
             return reconstruct_path(current_state)
-    #
-    #   openSet.Remove(current) -- done with pop
-        openSet.remove(current_state)
-    
-    #   closedSet.Add(current)
-        closedSet.add(current_state)
-    #
-    
-    #   for each neighbor of current
+
+        open_set.remove(current_state)
+        closed_set.add(current_state)
+
         neighbors = problem.getSuccessors(current_state)
         for neighbor in neighbors:
 
-            if neighbor[0] in closedSet:
+            if neighbor[0] in closed_set:
                 continue  # Ignore the neighbor which is already evaluated.
-    #
-    #       // The distance from start to a neighbor
-    #       tentative_gScore := gScore[current] + dist_between(current, neighbor)
-            tentative_gScore = gScore[current_state] + neighbor[2]
-    #
-    #       if neighbor not in openSet	// Discover a new node
+
+            tentative_gScore = global_score[current_state] + neighbor[2]
             added_to_set = False
-            if neighbor[0] not in openSet:
+            if neighbor[0] not in open_set:
                 added_to_set = True
-                openSet.add(neighbor[0])
-            elif tentative_gScore >= gScore[neighbor[0]]: # TODO: watch this var!!
+                open_set.add(neighbor[0])
+            elif tentative_gScore >= global_score[neighbor[0]]:
                 continue
-    #
-    #       // This path is the best until now. Record it!
-    #       cameFrom[neighbor] := current
-            cameFrom[neighbor[0]] = (current_state, neighbor[1])
-    #       gScore[neighbor] := tentative_gScore
-            gScore[neighbor[0]] = tentative_gScore
-    #       fScore[neighbor] := gScore[neighbor] + heuristic_cost_estimate(neighbor, goal)
-            fScore[neighbor[0]] = gScore[neighbor[0]] + heuristic(neighbor[0], problem)
+
+            came_from[neighbor[0]] = (current_state, neighbor[1])
+            global_score[neighbor[0]] = tentative_gScore
+            f_score[neighbor[0]] = global_score[neighbor[0]] + heuristic(neighbor[0], problem)
             
             if added_to_set:
-                openQueue.push(neighbor[0], fScore[neighbor[0]])
+                open_queue.push(neighbor[0], f_score[neighbor[0]])
 
 def aStarSearch(problem, heuristic=nullHeuristic):
     """Search the node that has the lowest combined cost and heuristic first."""
-    #return genericSearch(problem, util.PriorityQueue(), heuristic)
+    # NOTE: AStar search was implemented outside of generic search because it wasn't working as expected
     return _aStarSearch(problem, heuristic)
 
 
