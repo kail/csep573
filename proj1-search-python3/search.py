@@ -82,8 +82,11 @@ def genericSearch(problem, data_structure, heuristic = None):
     # Used to report the result at the end of the search
     result_queue = util.Queue()
     
+    visited_set = set()
+    
     # Initialize the stack or queue with the starting state
     start_state = problem.getStartState()
+    
     parent_graph[start_state] = None
     if isinstance(data_structure, util.PriorityQueue):
         data_structure.push((start_state, None, 0), priority=0)
@@ -100,15 +103,22 @@ def genericSearch(problem, data_structure, heuristic = None):
             end_successor = successor_val
             break
             
+        if state in visited_set:
+            continue
+        visited_set.add(state)
+            
         # Get all potential successors
         successors = problem.getSuccessors(state)
         for successor in successors:
             successor_state = successor[0]
             step_cost = successor[2]
             
-            if successor_state in parent_graph:
-                # This node has been visited. Skip
+            if successor_state in visited_set or successor_state in parent_graph:
                 continue
+            
+            # if successor_state in parent_graph:
+            #     # This node has been visited. Skip
+            #     continue
                 
             # Update the total cost
             cost_so_far += step_cost
@@ -144,17 +154,118 @@ def depthFirstSearch(problem):
     """
     Search the deepest nodes in the search tree first.
     """
-    return genericSearch(problem, util.Stack())
+    import copy
+    
+    data_structure = util.Stack()
+    
+    # This will map the visited nodes to a tuple (parent node loc, successor)
+    parent_graph = dict()
+    
+    # Used to report the result at the end of the search
+    result_queue = util.Queue()
+    
+    visited_set = set()
+    
+    # Initialize the stack or queue with the starting state
+    start_state = problem.getStartState()
+    visited_set.add(start_state)
+    parent_graph[start_state] = None
+    data_structure.push((start_state, None, 0))
+        
+    # Iterate while data_structure has something in it
+    end_successor = None
+    while not data_structure.isEmpty():
+        state, successor_val, cost_so_far = data_structure.pop()
+
+        # End iteration if we have reached the goal
+        if problem.isGoalState(state):
+            end_successor = successor_val
+            break
+            
+        visited_set.add(state)
+        
+        # Get all potential successors
+        successors = problem.getSuccessors(state)
+        for successor in successors:
+            successor_state = successor[0]
+            
+            if successor_state in visited_set:
+                continue
+
+            # Save the successor to graph, and queue
+            parent_graph[successor_state] = (state, successor_val)
+            
+            # Add the next nodes to the structure
+            data_structure.push((successor_state, successor, cost_so_far))
+                
+    # Reconstruct the path we took to get here
+    parent_successor = end_successor
+    while parent_successor:
+        result_queue.push(parent_successor)
+        parent_successor = parent_graph[parent_successor[0]][1]
+        
+    steps = [step[1] for step in result_queue.list]
+    return copy.copy(steps)
 
 
 def breadthFirstSearch(problem):
     """Search the shallowest nodes in the search tree first."""
-    return genericSearch(problem, util.Queue())
+    #return genericSearch(problem, util.Queue())
+    
+    import copy
+    
+    data_structure = util.Queue()
+    
+    # This will map the visited nodes to a tuple (parent node loc, successor)
+    parent_graph = dict()
+    
+    # Used to report the result at the end of the search
+    result_queue = util.Queue()
+    
+    visited_set = set()
+    
+    # Initialize the stack or queue with the starting state
+    start_state = problem.getStartState()
+    
+    parent_graph[start_state] = None
+    data_structure.push((start_state, None, 0))
+        
+    # Iterate while data_structure has something in it
+    end_successor = None
+    while not data_structure.isEmpty():
+        state, successor_val, cost_so_far = data_structure.pop()
 
+        # End iteration if we have reached the goal
+        if problem.isGoalState(state):
+            end_successor = successor_val
+            break
+            
+        if state in visited_set:
+            continue
+        visited_set.add(state)
+        
+        # Get all potential successors
+        successors = problem.getSuccessors(state)
+        for successor in successors:
+            successor_state = successor[0]
+            
+            if successor_state in visited_set or successor_state in parent_graph:
+                continue
 
-def uniformCostSearch(problem):
-    """Search the shallowest nodes in the search tree first, but incorporate cost"""
-    return genericSearch(problem, util.PriorityQueue())
+            # Save the successor to graph, and queue
+            parent_graph[successor_state] = (state, successor_val)
+            
+            # Add the next nodes to the structure
+            data_structure.push((successor_state, successor, cost_so_far))
+                
+    # Reconstruct the path we took to get here
+    parent_successor = end_successor
+    while parent_successor:
+        result_queue.push(parent_successor)
+        parent_successor = parent_graph[parent_successor[0]][1]
+        
+    steps = [step[1] for step in result_queue.list]
+    return copy.copy(steps)
 
 
 def nullHeuristic(state, problem=None):
@@ -205,12 +316,15 @@ def _aStarSearch(problem, heuristic=nullHeuristic):
         if problem.isGoalState(current_state):
             return reconstruct_path(current_state)
 
-        open_set.remove(current_state)
+        # This could have been removed previously, if 2 of the same states were on the queue with different priorities
+        if current_state in open_set:
+            open_set.remove(current_state)
         closed_set.add(current_state)
 
         neighbors = problem.getSuccessors(current_state)
         for neighbor in neighbors:
-
+            if neighbor[0] == 'G':
+                print('debug')
             if neighbor[0] in closed_set:
                 continue  # Ignore the neighbor which is already evaluated.
 
@@ -225,9 +339,14 @@ def _aStarSearch(problem, heuristic=nullHeuristic):
             came_from[neighbor[0]] = (current_state, neighbor[1])
             global_score[neighbor[0]] = tentative_gScore
             f_score[neighbor[0]] = global_score[neighbor[0]] + heuristic(neighbor[0], problem)
-            
-            if added_to_set:
-                open_queue.push(neighbor[0], f_score[neighbor[0]])
+            open_queue.push(neighbor[0], f_score[neighbor[0]])
+
+
+def uniformCostSearch(problem):
+    """Search the shallowest nodes in the search tree first, but incorporate cost"""
+    #return genericSearch(problem, util.PriorityQueue())
+    return _aStarSearch(problem)
+
 
 def aStarSearch(problem, heuristic=nullHeuristic):
     """Search the node that has the lowest combined cost and heuristic first."""
