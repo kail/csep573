@@ -532,12 +532,65 @@ def foodHeuristic(state, problem):
     position, foodGrid = state
     
     # Sum all of the distances to food
+    # THIS HEURISTIC IS PROBABLY NOT CONSISTENT
     distance_sum = 0
+    num_dots = 0
     for x_index in range(len(foodGrid.data)):
         for y_index in range(len(foodGrid.data[x_index])):
             if foodGrid.data[x_index][y_index]:
                 distance_sum += manhattanDistance(position, (x_index, y_index))
-    return distance_sum
+                num_dots += 1
+    return num_dots // distance_sum
+
+def foodHeuristic3(state, problem):
+    """
+    If you want to *store* information to be reused in other calls to the
+    heuristic, there is a dictionary called problem.heuristicInfo that you can
+    use. For example, if you only want to count the walls once and store that
+    value, try: problem.heuristicInfo['wallCount'] = problem.walls.count()
+    Subsequent calls to this heuristic can access
+    problem.heuristicInfo['wallCount']
+    """
+    def manhattanDistance(xy1, xy2):
+        return abs(xy1[0] - xy2[0]) + abs(xy1[1] - xy2[1])
+    
+    position, foodGrid = state
+    
+    # Sum all of the distances to food
+    # THIS HEURISTIC IS PROBABLY NOT CONSISTENT
+    furthest = 0
+    for x_index in range(len(foodGrid.data)):
+        for y_index in range(len(foodGrid.data[x_index])):
+            if foodGrid.data[x_index][y_index]:
+                distance= manhattanDistance(position, (x_index, y_index))
+                if distance > furthest:
+                    furthest = distance
+    return furthest
+
+def foodHeuristic(state, problem):
+    """
+    If you want to *store* information to be reused in other calls to the
+    heuristic, there is a dictionary called problem.heuristicInfo that you can
+    use. For example, if you only want to count the walls once and store that
+    value, try: problem.heuristicInfo['wallCount'] = problem.walls.count()
+    Subsequent calls to this heuristic can access
+    problem.heuristicInfo['wallCount']
+    """
+    def manhattanDistance(xy1, xy2):
+        return abs(xy1[0] - xy2[0]) + abs(xy1[1] - xy2[1])
+    
+    position, foodGrid = state
+    
+    # Sum all of the distances to food
+    # THIS HEURISTIC IS PROBABLY NOT CONSISTENT
+    closest = 99999
+    for x_index in range(len(foodGrid.data)):
+        for y_index in range(len(foodGrid.data[x_index])):
+            if foodGrid.data[x_index][y_index]:
+                distance = manhattanDistance(position, (x_index, y_index))
+                if distance < closest:
+                    closest = distance
+    return closest
 
 class ClosestDotSearchAgent(SearchAgent):
     "Search for all food using a sequence of searches"
@@ -567,8 +620,8 @@ class ClosestDotSearchAgent(SearchAgent):
         walls = gameState.getWalls()
         problem = AnyFoodSearchProblem(gameState)
 
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        actions = search.uniformCostSearch(problem)
+        return actions
 
 class AnyFoodSearchProblem(PositionSearchProblem):
     """
@@ -603,8 +656,7 @@ class AnyFoodSearchProblem(PositionSearchProblem):
         """
         x,y = state
 
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        return self.food.data[x][y]
 
 def mazeDistance(point1, point2, gameState):
     """
