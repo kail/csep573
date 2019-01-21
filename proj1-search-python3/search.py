@@ -339,6 +339,8 @@ def _aStarSearch(problem, heuristic=nullHeuristic):
             came_from[neighbor[0]] = (current_state, neighbor[1])
             global_score[neighbor[0]] = tentative_gScore
             f_score[neighbor[0]] = global_score[neighbor[0]] + heuristic(neighbor[0], problem)
+            
+            
             open_queue.push(neighbor[0], f_score[neighbor[0]])
 
 
