@@ -15,6 +15,7 @@
 from util import manhattanDistance
 from game import Directions
 import random, util
+from enum import Enum
 
 from game import Agent
 
@@ -27,7 +28,65 @@ class ReflexAgent(Agent):
     it in any way you see fit, so long as you don't touch our method
     headers.
     """
-
+    def feature_nearest_food(self, successorGameState):
+        MULTIPLIER = 2
+        newPos = successorGameState.getPacmanPosition()
+        newFood = successorGameState.getFood()
+        
+        min_distance = 999999
+        for row_index in range(len(newFood.data)):
+            for col_index in range(len(newFood.data[row_index])):
+                if newFood.data[row_index][col_index]:
+                    distance = util.manhattanDistance(newPos, (row_index, col_index))#abs(newPos[0] - row) + abs(newPos[1] - col)
+                    if distance < min_distance:
+                        min_distance = distance
+        
+        return MULTIPLIER / min_distance
+    
+    def feature_sum_food_distances(self, successorGameState):
+        newPos = successorGameState.getPacmanPosition()
+        newFood = successorGameState.getFood()
+        
+        distance_reciprocal_sum = 0
+        total_food = 0
+        for row_index in range(len(newFood.data)):
+            for col_index in range(len(newFood.data[row_index])):
+                if newFood.data[row_index][col_index]:
+                    distance = util.manhattanDistance(newPos, (row_index, col_index))#abs(newPos[0] - row) + abs(newPos[1] - col)
+                    distance_reciprocal_sum += 1/distance
+                    total_food += 1
+        
+        return distance_reciprocal_sum# / total_food if total_food else 0
+    
+    def feature_nearby_ghost(self, successorGameState):
+        MULTIPLIER = -20
+        newPos = successorGameState.getPacmanPosition()
+        newGhostStates = successorGameState.getGhostStates()
+        
+        distance_sum = 0
+        for ghostState in newGhostStates:
+            # Only include ghosts if scaredTime < distance and the ghost is close
+            distance = util.manhattanDistance(newPos, ghostState.getPosition())
+            if ghostState.scaredTimer < distance and distance < 8:
+                distance_sum += distance
+                
+        return MULTIPLIER * len(newGhostStates) / distance_sum if distance_sum else 0
+    
+    # def feature_pos_has_food(self, successorGameState):
+    #     newPos = successorGameState.getPacmanPosition()
+    #     newFood = successorGameState.getFood()
+    #
+    #     if newFood.data[newPos[0]][newPos[1]]:
+    #         return 1
+    #     return -1
+    
+    def feature_score_delta(self, successorGameState):
+        return successorGameState.data.scoreChange
+    
+    def feature_state_visited(self, successorGameState):
+        if successorGameState in successorGameState.explored:
+            return -5
+        return 0
 
     def getAction(self, gameState):
         """
@@ -73,8 +132,21 @@ class ReflexAgent(Agent):
         newGhostStates = successorGameState.getGhostStates()
         newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
 
-        "*** YOUR CODE HERE ***"
-        return successorGameState.getScore()
+        feature_funcs = [
+            self.feature_nearest_food,
+            self.feature_sum_food_distances,
+            self.feature_nearby_ghost,
+            self.feature_score_delta,
+            self.feature_state_visited,
+        ]
+        score = 0
+        for feature in feature_funcs:
+            score += feature(successorGameState)
+            
+        if action == 'Stop':
+            score -= 1
+        
+        return score
 
 def scoreEvaluationFunction(currentGameState):
     """
@@ -106,6 +178,37 @@ class MultiAgentSearchAgent(Agent):
         self.evaluationFunction = util.lookup(evalFn, globals())
         self.depth = int(depth)
 
+
+class MinimaxNode:
+    class Layer(Enum):
+        MIN = 0
+        MAX = 1
+    
+    def __init__(self, layer, game_state, action=None):
+        self.edges = []
+        self.layer = layer
+        self.game_state = game_state
+        self.action = action
+        
+    def evaluate(self, function, return_action=False):
+        if not self.edges:
+            return function(self.game_state)
+        
+        if self.layer == MinimaxNode.Layer.MIN:
+            return min(edge.evaluate(function=function) for edge in self.edges)
+        else:
+            edge_values = [edge.evaluate(function=function) for edge in self.edges]
+            max_edge = float('-inf')
+            max_edge_index = None
+            for i in range(len(edge_values)):
+                if edge_values[i] > max_edge:
+                    max_edge = edge_values[i]
+                    max_edge_index = i
+            
+            if return_action:
+                return self.edges[max_edge_index].action
+            return max_edge
+
 class MinimaxAgent(MultiAgentSearchAgent):
     """
     Your minimax agent (question 2)
@@ -134,8 +237,30 @@ class MinimaxAgent(MultiAgentSearchAgent):
         gameState.isLose():
         Returns whether or not the game state is a losing state
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        
+        num_agents = gameState.getNumAgents()
+        root_node = MinimaxNode(layer=MinimaxNode.Layer.MAX, game_state=gameState)
+        leaves = [root_node]
+        for depth in range(self.depth):
+            for agent_index in range(num_agents):
+                layer = MinimaxNode.Layer.MAX if agent_index == num_agents - 1 else MinimaxNode.Layer.MIN
+                new_leaves = []
+                for leaf in leaves:
+                    game_state = leaf.game_state
+                    legal_actions = game_state.getLegalActions(agent_index)
+                    action_successors = [(action, game_state.generateSuccessor(agent_index, action)) for action in legal_actions]
+                    
+                    # Create new node
+                    for action, successor in action_successors:
+                        new_leaf = MinimaxNode(layer=layer, game_state=successor, action=action)
+                        leaf.edges.append(new_leaf)
+                        new_leaves.append(new_leaf)
+                
+                # Reset the leaves to look at
+                leaves = new_leaves
+        
+        # Evaluate the minimax func
+        return root_node.evaluate(self.evaluationFunction, return_action=True)
 
 class AlphaBetaAgent(MultiAgentSearchAgent):
     """
