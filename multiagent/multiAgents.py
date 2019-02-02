@@ -189,6 +189,7 @@ class MinimaxNode:
         self.layer = layer
         self.game_state = game_state
         self.action = action
+        self.edge_results = {}
         
     def evaluate(self, function, return_action=False):
         if not self.edges:
@@ -208,11 +209,88 @@ class MinimaxNode:
             if return_action:
                 return self.edges[max_edge_index].action
             return max_edge
+        
+    def evaluate_ab(self, function, alpha, beta, return_action=False):
+        if not self.edges:
+            return function(self.game_state)
+        
+        if self.layer == MinimaxNode.Layer.MIN:
+            val = float('inf')
+            for edge in self.edges:
+                edge_result = edge.evaluate_ab(function, alpha, beta)
+                val = min(val, edge_result)
+                if val < alpha:
+                    return val
+                beta = min(beta, val)
+            return val
+        else:
+            val = float('-inf')
+            for edge in self.edges:
+                edge_result = edge.evaluate_ab(function, alpha, beta)
+                if return_action:
+                    self.edge_results[edge] = edge_result
+                val = max(val, edge_result)
+                if val > beta:
+                    return val
+                alpha = max(val, alpha)
+            if not return_action:
+                return val
+                
+            # Run this only from the root max node (when return_action == True)
+            max_result = float('-inf')
+            max_edge = None
+            for edge in self.edge_results:
+                if self.edge_results[edge] > max_result:
+                    max_result = self.edge_results[edge]
+                    max_edge = edge
+            return max_edge.action
+            
 
 class MinimaxAgent(MultiAgentSearchAgent):
     """
     Your minimax agent (question 2)
     """
+    
+    def __init__(self, *arg, **kwargs):
+        super().__init__(*arg, **kwargs)
+        self.next_action = None
+        
+    def evaluate(self, depth, agent_index, game_state):
+        # Update the depth if we are at a new level
+        if agent_index == game_state.getNumAgents():
+            agent_index = 0
+            depth += 1
+        
+        # 0-indexed depth
+        if depth == self.depth:
+            return self.evaluationFunction(game_state)
+        
+        if agent_index != 0:
+            val = float('inf')
+            legal_actions = game_state.getLegalActions(agent_index)
+            if not legal_actions:
+                return self.evaluationFunction(game_state)
+            for action in legal_actions:
+                successor_state = game_state.generateSuccessor(agent_index, action)
+                edge_result = self.evaluate(depth, agent_index + 1, successor_state)
+                val = min(val, edge_result)
+            return val
+        else:
+            set_action = (depth == 0 and agent_index == 0)
+            
+            val = float('-inf')
+            legal_actions = game_state.getLegalActions(agent_index)
+            if not legal_actions:
+                return self.evaluationFunction(game_state)
+            for action in legal_actions:
+                successor_state = game_state.generateSuccessor(agent_index, action)
+                edge_result = self.evaluate(depth, agent_index + 1, successor_state)
+                
+                # Sets the next action to be taken
+                if set_action and edge_result > val:
+                    self.next_action = action
+                val = max(val, edge_result)
+            return val
 
     def getAction(self, gameState):
         """
@@ -238,41 +316,90 @@ class MinimaxAgent(MultiAgentSearchAgent):
         Returns whether or not the game state is a losing state
         """
         
-        num_agents = gameState.getNumAgents()
-        root_node = MinimaxNode(layer=MinimaxNode.Layer.MAX, game_state=gameState)
-        leaves = [root_node]
-        for depth in range(self.depth):
-            for agent_index in range(num_agents):
-                layer = MinimaxNode.Layer.MAX if agent_index == num_agents - 1 else MinimaxNode.Layer.MIN
-                new_leaves = []
-                for leaf in leaves:
-                    game_state = leaf.game_state
-                    legal_actions = game_state.getLegalActions(agent_index)
-                    action_successors = [(action, game_state.generateSuccessor(agent_index, action)) for action in legal_actions]
-                    
-                    # Create new node
-                    for action, successor in action_successors:
-                        new_leaf = MinimaxNode(layer=layer, game_state=successor, action=action)
-                        leaf.edges.append(new_leaf)
-                        new_leaves.append(new_leaf)
-                
-                # Reset the leaves to look at
-                leaves = new_leaves
-        
-        # Evaluate the minimax func
-        return root_node.evaluate(self.evaluationFunction, return_action=True)
+        # --- Working implementation ---
+        # num_agents = gameState.getNumAgents()
+        # root_node = MinimaxNode(layer=MinimaxNode.Layer.MAX, game_state=gameState)
+        # leaves = [root_node]
+        # for depth in range(self.depth):
+        #     for agent_index in range(num_agents):
+        #         layer = MinimaxNode.Layer.MAX if agent_index == num_agents - 1 else MinimaxNode.Layer.MIN
+        #         new_leaves = []
+        #         for leaf in leaves:
+        #             game_state = leaf.game_state
+        #             legal_actions = game_state.getLegalActions(agent_index)
+        #             action_successors = [(action, game_state.generateSuccessor(agent_index, action)) for action in legal_actions]
+        #
+        #             # Create new node
+        #             for action, successor in action_successors:
+        #                 new_leaf = MinimaxNode(layer=layer, game_state=successor, action=action)
+        #                 leaf.edges.append(new_leaf)
+        #                 new_leaves.append(new_leaf)
+        #
+        #         # Reset the leaves to look at
+        #         leaves = new_leaves
+        #
+        # # Evaluate the minimax func
+        # return root_node.evaluate(self.evaluationFunction, return_action=True)
+        self.evaluate(0, 0, gameState)
+        return self.next_action
 
 class AlphaBetaAgent(MultiAgentSearchAgent):
     """
     Your minimax agent with alpha-beta pruning (question 3)
     """
-
+    def __init__(self, *arg, **kwargs):
+        super().__init__(*arg, **kwargs)
+        self.next_action = None
+        
+    def evaluate(self, depth, agent_index, game_state, alpha, beta):
+        # Update the depth if we are at a new level
+        if agent_index == game_state.getNumAgents():
+            agent_index = 0
+            depth += 1
+        
+        # 0-indexed depth
+        if depth == self.depth:
+            return self.evaluationFunction(game_state)
+        
+        if agent_index != 0:
+            val = float('inf')
+            legal_actions = game_state.getLegalActions(agent_index)
+            if not legal_actions:
+                return self.evaluationFunction(game_state)
+            for action in legal_actions:
+                successor_state = game_state.generateSuccessor(agent_index, action)
+                edge_result = self.evaluate(depth, agent_index + 1, successor_state, alpha, beta)
+                val = min(val, edge_result)
+                if val < alpha:
+                    return val
+                beta = min(beta, val)
+            return val
+        else:
+            set_action = depth == 0 and agent_index == 0
+            
+            val = float('-inf')
+            legal_actions = game_state.getLegalActions(agent_index)
+            if not legal_actions:
+                return self.evaluationFunction(game_state)
+            for action in legal_actions:
+                successor_state = game_state.generateSuccessor(agent_index, action)
+                edge_result = self.evaluate(depth, agent_index + 1, successor_state, alpha, beta)
+                
+                # Sets the next action to be taken
+                if set_action and edge_result > val:
+                    self.next_action = action
+                val = max(val, edge_result)
+                if val > beta:
+                    return val
+                alpha = max(val, alpha)
+            return val
+        
     def getAction(self, gameState):
         """
         Returns the minimax action using self.depth and self.evaluationFunction
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        self.evaluate(0, 0, gameState, alpha=float('-inf'), beta=float('inf'))
+        return self.next_action
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
     """
