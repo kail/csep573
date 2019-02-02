@@ -19,6 +19,69 @@ from enum import Enum
 
 from game import Agent
 
+
+def feature_nearest_food(successorGameState):
+    MULTIPLIER = 2
+    newPos = successorGameState.getPacmanPosition()
+    newFood = successorGameState.getFood()
+    
+    min_distance = 999999
+    for row_index in range(len(newFood.data)):
+        for col_index in range(len(newFood.data[row_index])):
+            if newFood.data[row_index][col_index]:
+                distance = util.manhattanDistance(newPos, (row_index, col_index))#abs(newPos[0] - row) + abs(newPos[1] - col)
+                if distance < min_distance:
+                    min_distance = distance
+    
+    return MULTIPLIER / min_distance
+
+
+def feature_sum_food_distances(currentGameState):
+    MULTIPLIER = 1
+    newPos = currentGameState.getPacmanPosition()
+    newFood = currentGameState.getFood()
+    
+    distance_reciprocal_sum = 0
+    for food in newFood.asList():
+        distance_reciprocal_sum += 1.0 / manhattanDistance(newPos, food)
+    
+    return MULTIPLIER * distance_reciprocal_sum
+    
+
+def feature_nearby_ghost(currentGameState):
+    MULTIPLIER = -1
+    DIST_THRESH = 5
+    newPos = currentGameState.getPacmanPosition()
+    newGhostStates = currentGameState.getGhostStates()
+    
+    distance_sum = 0
+    for ghostState in newGhostStates:
+        # Only include ghosts if scaredTime < distance and the ghost is close
+        dis = manhattanDistance(newPos, ghostState.getPosition())
+        if dis != 0 and dis < DIST_THRESH:
+            distance_sum += dis
+            
+    return MULTIPLIER * len(newGhostStates) / distance_sum if distance_sum else 0
+
+
+def feature_score(currentGameState):
+    return currentGameState.getScore()
+
+
+def feature_scared_times(currentGameState):
+    newGhostStates = currentGameState.getGhostStates()
+    return sum(ghostState.scaredTimer for ghostState in newGhostStates)
+
+
+# Winning is fine, but definitely don't lose
+def feature_is_lose(currentGameState):
+    return -20 if currentGameState.isLose() else 0
+
+
+def feature_is_win(currentGameState):
+    return 10 if currentGameState.isWin() else 0
+
+
 class ReflexAgent(Agent):
     """
     A reflex agent chooses an action at each choice point by examining
@@ -28,65 +91,6 @@ class ReflexAgent(Agent):
     it in any way you see fit, so long as you don't touch our method
     headers.
     """
-    def feature_nearest_food(self, successorGameState):
-        MULTIPLIER = 2
-        newPos = successorGameState.getPacmanPosition()
-        newFood = successorGameState.getFood()
-        
-        min_distance = 999999
-        for row_index in range(len(newFood.data)):
-            for col_index in range(len(newFood.data[row_index])):
-                if newFood.data[row_index][col_index]:
-                    distance = util.manhattanDistance(newPos, (row_index, col_index))#abs(newPos[0] - row) + abs(newPos[1] - col)
-                    if distance < min_distance:
-                        min_distance = distance
-        
-        return MULTIPLIER / min_distance
-    
-    def feature_sum_food_distances(self, successorGameState):
-        newPos = successorGameState.getPacmanPosition()
-        newFood = successorGameState.getFood()
-        
-        distance_reciprocal_sum = 0
-        total_food = 0
-        for row_index in range(len(newFood.data)):
-            for col_index in range(len(newFood.data[row_index])):
-                if newFood.data[row_index][col_index]:
-                    distance = util.manhattanDistance(newPos, (row_index, col_index))#abs(newPos[0] - row) + abs(newPos[1] - col)
-                    distance_reciprocal_sum += 1/distance
-                    total_food += 1
-        
-        return distance_reciprocal_sum# / total_food if total_food else 0
-    
-    def feature_nearby_ghost(self, successorGameState):
-        MULTIPLIER = -20
-        newPos = successorGameState.getPacmanPosition()
-        newGhostStates = successorGameState.getGhostStates()
-        
-        distance_sum = 0
-        for ghostState in newGhostStates:
-            # Only include ghosts if scaredTime < distance and the ghost is close
-            distance = util.manhattanDistance(newPos, ghostState.getPosition())
-            if ghostState.scaredTimer < distance and distance < 8:
-                distance_sum += distance
-                
-        return MULTIPLIER * len(newGhostStates) / distance_sum if distance_sum else 0
-    
-    # def feature_pos_has_food(self, successorGameState):
-    #     newPos = successorGameState.getPacmanPosition()
-    #     newFood = successorGameState.getFood()
-    #
-    #     if newFood.data[newPos[0]][newPos[1]]:
-    #         return 1
-    #     return -1
-    
-    def feature_score_delta(self, successorGameState):
-        return successorGameState.data.scoreChange
-    
-    def feature_state_visited(self, successorGameState):
-        if successorGameState in successorGameState.explored:
-            return -5
-        return 0
 
     def getAction(self, gameState):
         """
@@ -127,17 +131,12 @@ class ReflexAgent(Agent):
         """
         # Useful information you can extract from a GameState (pacman.py)
         successorGameState = currentGameState.generatePacmanSuccessor(action)
-        newPos = successorGameState.getPacmanPosition()
-        newFood = successorGameState.getFood()
-        newGhostStates = successorGameState.getGhostStates()
-        newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
 
         feature_funcs = [
-            self.feature_nearest_food,
-            self.feature_sum_food_distances,
-            self.feature_nearby_ghost,
-            self.feature_score_delta,
-            self.feature_state_visited,
+            feature_nearest_food,
+            feature_sum_food_distances,
+            feature_nearby_ghost,
+            feature_score,
         ]
         score = 0
         for feature in feature_funcs:
@@ -315,31 +314,6 @@ class MinimaxAgent(MultiAgentSearchAgent):
         gameState.isLose():
         Returns whether or not the game state is a losing state
         """
-        
-        # --- Working implementation ---
-        # num_agents = gameState.getNumAgents()
-        # root_node = MinimaxNode(layer=MinimaxNode.Layer.MAX, game_state=gameState)
-        # leaves = [root_node]
-        # for depth in range(self.depth):
-        #     for agent_index in range(num_agents):
-        #         layer = MinimaxNode.Layer.MAX if agent_index == num_agents - 1 else MinimaxNode.Layer.MIN
-        #         new_leaves = []
-        #         for leaf in leaves:
-        #             game_state = leaf.game_state
-        #             legal_actions = game_state.getLegalActions(agent_index)
-        #             action_successors = [(action, game_state.generateSuccessor(agent_index, action)) for action in legal_actions]
-        #
-        #             # Create new node
-        #             for action, successor in action_successors:
-        #                 new_leaf = MinimaxNode(layer=layer, game_state=successor, action=action)
-        #                 leaf.edges.append(new_leaf)
-        #                 new_leaves.append(new_leaf)
-        #
-        #         # Reset the leaves to look at
-        #         leaves = new_leaves
-        #
-        # # Evaluate the minimax func
-        # return root_node.evaluate(self.evaluationFunction, return_action=True)
         self.evaluate(0, 0, gameState)
         return self.next_action
 
@@ -405,6 +379,46 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
     """
       Your expectimax agent (question 4)
     """
+    def __init__(self, *arg, **kwargs):
+        super().__init__(*arg, **kwargs)
+        self.next_action = None
+        
+    def evaluate(self, depth, agent_index, game_state):
+        # Update the depth if we are at a new level
+        if agent_index == game_state.getNumAgents():
+            agent_index = 0
+            depth += 1
+        
+        # 0-indexed depth
+        if depth == self.depth:
+            return self.evaluationFunction(game_state)
+        
+        if agent_index != 0:
+            val = 0.0
+            legal_actions = game_state.getLegalActions(agent_index)
+            if not legal_actions:
+                return self.evaluationFunction(game_state)
+            for action in legal_actions:
+                successor_state = game_state.generateSuccessor(agent_index, action)
+                edge_result = self.evaluate(depth, agent_index + 1, successor_state)
+                val += edge_result
+            return val / len(legal_actions)
+        else:
+            set_action = (depth == 0 and agent_index == 0)
+            
+            val = float('-inf')
+            legal_actions = game_state.getLegalActions(agent_index)
+            if not legal_actions:
+                return self.evaluationFunction(game_state)
+            for action in legal_actions:
+                successor_state = game_state.generateSuccessor(agent_index, action)
+                edge_result = self.evaluate(depth, agent_index + 1, successor_state)
+                
+                # Sets the next action to be taken
+                if set_action and edge_result > val:
+                    self.next_action = action
+                val = max(val, edge_result)
+            return val
 
     def getAction(self, gameState):
         """
@@ -413,18 +427,34 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
         All ghosts should be modeled as choosing uniformly at random from their
         legal moves.
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        self.evaluate(0, 0, gameState)
+        return self.next_action
+
 
 def betterEvaluationFunction(currentGameState):
     """
     Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable
     evaluation function (question 5).
 
-    DESCRIPTION: <write something here so we know what you did>
+    DESCRIPTION: This function returns the cumulative score from an ensemble of features. The features are:
+    - Number of food / distances to food
+    - Negative number of ghosts / distance to ghosts (iff distance < 5)
+    - The score of a gameState
+    - The sum of all scared times
     """
-    "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    feature_funcs = [
+        feature_sum_food_distances,
+        feature_nearby_ghost,
+        feature_score,
+        feature_scared_times,
+        feature_is_lose,
+        feature_is_win,
+    ]
+    score = 0
+    for feature in feature_funcs:
+        score += feature(currentGameState)
+
+    return score
 
 # Abbreviation
 better = betterEvaluationFunction
