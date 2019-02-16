@@ -15,6 +15,7 @@
 
 import random
 import mdp, util
+import math
 
 from learningAgents import ValueEstimationAgent
 
@@ -52,30 +53,42 @@ class RTDPAgent(ValueEstimationAgent):
         # Write rtdp code here
         self.start_state = mdp.getStartState()
         self.states = mdp.getStates()
+        self.use_stack = True
+        self.stack = []
         
-        current_state = self.start_state
-        while not self.mdp.isTerminal(current_state):
-            # Pick the best action and update hash
-            action, utility = self.greedyAction(current_state)
+        for _ in range(self.iterations):
+            current_state = self.start_state
+            iter = 0
+            while not self.mdp.isTerminal(current_state) and iter < max_iters:
+                iter += 1
+                # Pick the best action and update hash
+                action, utility = self.greedyAction(current_state)
+                
+                if not self.use_stack:
+                    self.values[current_state] = utility
+                else:
+                    self.stack.append((current_state, utility))
+                
+                # Stochastically simulate next state
+                current_state = self.pickNextState(current_state, action)
             
-            #previous_state = current_state
-            #self.updateValue(current_state, action)
-            self.values[current_state] = utility
-            
-            # Stochastically simulate next state
-            current_state = self.pickNextState(current_state, action)
-            
-            #self.updateValue(previous_state, action)
+            if self.use_stack and self.stack:
+                for i in range(len(self.stack)):
+                    back_index = len(self.stack) - i - 1
+                    item = self.stack[back_index]
+                    self.values[item[0]] = item[1]
+                # Reset
+                self.stack = []
         
     def greedyAction(self, state):
         actions = self.mdp.getPossibleActions(state)
         
         actionCounter = util.Counter()
         for action in actions:
-            actionCounter[action] = -self.getQValue(state, action)
+            actionCounter[action] = self.getQValue(state, action)
         
         pi = actionCounter.argMax()
-        return pi, -actionCounter[pi]
+        return pi, actionCounter[pi]
     
     def pickNextState(self, state, action):
         """
@@ -96,12 +109,20 @@ class RTDPAgent(ValueEstimationAgent):
         """
         
         # Should be upper bound on value
-        # TODO: actually implement this
-        goalState = self.mdp.getGoalState()
-        if goalState == state or self.mdp.isTerminal(state):
-            return 0.0
+        if self.mdp.isTerminal(state):
+            return 0
+        potential_reward = self.mdp.getReward(state, None, None)
+        if potential_reward:
+            return potential_reward
         
-        return 1 - (1 / util.manhattanDistance(goalState, state))
+        return math.pow(self.discount, util.manhattanDistance(self.mdp.getGoalState(), state)) * self.mdp.getGoalReward()
+        #return self.mdp.getGoalReward()
+        
+        # goalState = self.mdp.getGoalState()
+        # if goalState == state or self.mdp.isTerminal(state):
+        #     return self.mdp.getGoalReward() * 2
+        #
+        # return self.mdp.getGoalReward() + (self.mdp.getGoalReward() / (util.manhattanDistance(goalState, state) + 1))
 
     def getValue(self, state):
         """
@@ -124,13 +145,18 @@ class RTDPAgent(ValueEstimationAgent):
         transitionStateProbs = self.mdp.getTransitionStatesAndProbs(state, action)
         totalQ = 0
         
-        for transitionState, transitionProb in transitionStateProbs:
-            cost = 1 - self.mdp.getReward(state, action, transitionState)
-            utility = self.getValue(transitionState)
-            q_val = transitionProb * (((1 - self.discount) * utility) + cost)
-            totalQ += q_val
+        q_vals = []
         
-        return totalQ
+        for transitionState, transitionProb in transitionStateProbs:
+            reward = self.mdp.getReward(state, action, transitionState)
+            utility = self.getValue(transitionState)
+            q_val = transitionProb * ((self.discount * utility) + reward)
+            #q_val = transitionProb * ((self.discount * utility))
+            #totalQ += q_val
+            q_vals.append(q_val)
+        
+        return sum(q_vals)
+        #return totalQ
 
     def computeActionFromValues(self, state):
         """

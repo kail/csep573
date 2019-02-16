@@ -487,6 +487,23 @@ def parseOptions():
     return opts
 
 
+def get_average_reward(agent, mdp):
+    current_state = mdp.getStartState()
+    iterations = 0
+    total = 0
+    while not mdp.isTerminal(current_state) and iterations < 1000:
+        total += agent.getValue(current_state)
+        action = agent.getPolicy(current_state)
+        next_states = mdp.getTransitionStatesAndProbs(current_state, action)
+        current_state = next_states[0][0]
+        iterations += 1
+        
+    if mdp.isTerminal(current_state):
+        return total / iterations
+    return 0
+    
+
+
 if __name__ == '__main__':
 
     opts = parseOptions()
@@ -521,12 +538,29 @@ if __name__ == '__main__':
     # GET THE AGENT
     ###########################
 
-    import valueIterationAgents, qlearningAgents, rtdpAgents
+    import valueIterationAgents, qlearningAgents, rtdpAgents, time
     a = None
     if opts.agent == 'value':
-        a = valueIterationAgents.ValueIterationAgent(mdp, opts.discount, opts.iters)
+        #a = valueIterationAgents.ValueIterationAgent(mdp, opts.discount, opts.iters)
+        for i in range(1, 100):
+            start_time = int(time.time()*1000.0)
+            a = valueIterationAgents.ValueIterationAgent(mdp, opts.discount, i)
+
+            end_time = int(time.time()*1000.0)
+            average_reward = sum(a.getValue(state) for state in mdp.getStates()) / len(mdp.getStates())
+            #average_reward = get_average_reward(a, mdp)
+            print('%s,%s' % (end_time - start_time, average_reward))
     elif opts.agent == 'rtdp':
-        a = rtdpAgents.RTDPAgent(mdp, opts.discount, opts.iters)
+        #a = rtdpAgents.RTDPAgent(mdp, opts.discount, opts.iters)
+        for i in range(1, 200):
+            start_time = int(time.time()*1000.0)
+            a = rtdpAgents.RTDPAgent(mdp, opts.discount, i)
+            #a = rtdpAgents.RTDPAgent(mdp, opts.discount, opts.iters)
+            end_time = int(time.time()*1000.0)
+            #average_reward = get_average_reward(a, mdp)#sum(a.values.values()) / len(a.values)
+            #average_reward = sum(a.values.values()) / len(a.values)
+            average_reward = sum(a.getValue(state) for state in mdp.getStates()) / len(mdp.getStates())
+            print('%s,%s' % (end_time - start_time, average_reward))
     elif opts.agent == 'q':
         #env.getPossibleActions, opts.discount, opts.learningRate, opts.epsilon
         #simulationFn = lambda agent, state: simulation.GridworldSimulation(agent,state,mdp)
@@ -563,9 +597,9 @@ if __name__ == '__main__':
 
 
     ###########################
-    # RUN EPISODES
-    ###########################
-    # DISPLAY Q/V VALUES BEFORE SIMULATION OF EPISODES
+    #     # RUN EPISODES
+    #     ###########################
+    #     # DISPLAY Q/V VALUES BEFORE SIMULATION OF EPISODES
     try:
         if not opts.manual:
             if opts.valueSteps:
