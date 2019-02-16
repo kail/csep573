@@ -479,7 +479,7 @@ if __name__ == '__main__':
     # GET THE AGENT
     ###########################
 
-    import valueIterationAgents, qlearningAgents
+    import qlearningAgents#valueIterationAgents, qlearningAgents
     a = None
     if opts.agent == 'value':
         a = valueIterationAgents.ValueIterationAgent(mdp, opts.discount, opts.iters)
