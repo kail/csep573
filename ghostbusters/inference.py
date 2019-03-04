@@ -17,6 +17,7 @@ import random
 import busters
 import game
 
+from collections import defaultdict
 from numpy.random import choice
 from util import manhattanDistance, raiseNotDefined
 
@@ -373,7 +374,6 @@ class ParticleFilter(InferenceModule):
                 
         leftover_slots = self.numParticles - len(self.particles)
         if leftover_slots:
-            print('Uneven distribution?')
             for position in self.legalPositions:
                 if leftover_slots <= 0:
                     break
@@ -496,9 +496,25 @@ class JointParticleFilter(ParticleFilter):
         uniform prior.
         """
         self.particles = []
-        "*** YOUR CODE HERE ***"
-        raiseNotDefined()
+        
+        # Create all tuples, and randomize
+        position_tuples = list(itertools.product(self.legalPositions, repeat=self.numGhosts))
+        random.shuffle(position_tuples)
+        
+        parts_per_position = self.numParticles // len(position_tuples)
 
+        for position in position_tuples:
+            for _ in range(parts_per_position):
+                self.particles.append(position)
+
+        leftover_slots = self.numParticles - len(self.particles)
+        if leftover_slots:
+            for position in position_tuples:
+                if leftover_slots <= 0:
+                    break
+                leftover_slots -= 1
+                self.particles.append(position)
+        
     def addGhostAgent(self, agent):
         """
         Each ghost agent is registered separately and stored (in case they are
