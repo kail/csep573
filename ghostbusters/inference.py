@@ -417,34 +417,6 @@ class ParticleFilter(InferenceModule):
         Sample each particle's next state based on its current state and the
         gameState.
         """
-        # all_possible_distributions = {}
-        # for possible_ghost_pos in self.particles:
-        #     newPosDist = self.getPositionDistribution(gameState, possible_ghost_pos)
-        #     all_possible_distributions[possible_ghost_pos] = newPosDist
-        #
-        # # Don't modify this during iterations
-        # past_beliefs = self.getBeliefDistribution()
-        # beliefs_update = DiscreteDistribution()
-        #
-        # # Iterate over all "time + 1" locations
-        # for next_ghost_pos in self.particles:
-        #     probability = 0.0
-        #
-        #     # Iterate over all "time_0" locations
-        #     for start_ghost_position in all_possible_distributions:
-        #         if next_ghost_pos not in all_possible_distributions[start_ghost_position]:
-        #             continue
-        #         #probability += past_beliefs[start_ghost_position] * all_possible_distributions[start_ghost_position][next_ghost_pos]
-        #         probability += all_possible_distributions[start_ghost_position][next_ghost_pos]
-        #
-        #     beliefs_update[next_ghost_pos] = probability
-        #
-        # # Re-sample the particles, just like in observeUpdate
-        # if beliefs_update.total() == 0.0:
-        #     # Special case
-        #     self.initializeUniformly(gameState)
-        # else:
-        #     self.particles = [beliefs_update.sample() for _ in self.particles]
         
         new_particles = []
         for possible_ghost_pos in self.particles:
@@ -545,8 +517,31 @@ class JointParticleFilter(ParticleFilter):
         be reinitialized by calling initializeUniformly. The total method of
         the DiscreteDistribution may be useful.
         """
-        "*** YOUR CODE HERE ***"
-        raiseNotDefined()
+        beliefs_update = DiscreteDistribution()
+        pacman_pos = gameState.getPacmanPosition()
+        #jail_pos = self.getJailPosition(i)
+
+        for particle in self.particles:
+            probability = 1.0
+            for ghost_index in range(self.numGhosts):
+                probability *= self.getObservationProb(
+                    observation[ghost_index],
+                    pacman_pos,
+                    particle[ghost_index],
+                    self.getJailPosition(ghost_index)
+                )
+            if particle not in beliefs_update:
+                beliefs_update[particle] = 0.0
+            beliefs_update[particle] += probability
+
+        beliefs_update.normalize()
+        
+        if beliefs_update.total() == 0.0:
+            # Special case
+            self.initializeUniformly(gameState)
+        else:
+            # Re-sample particles based on new beliefs (particles used to iterate and get same count)
+            self.particles = [beliefs_update.sample() for _ in self.particles]
 
     def elapseTime(self, gameState):
         """
