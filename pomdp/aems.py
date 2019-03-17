@@ -69,8 +69,8 @@ class AEMS2(OnlineSolver):
         
         # Initial belief comes from the prior
         initial_belief = np.copy(self.pomdp.prior)
-        initial_L = self.lb_solver(initial_belief)
-        initial_U = self.ub_solver(initial_belief)
+        initial_L = self.lb_solver.getValue(initial_belief)
+        initial_U = self.ub_solver.getValue(initial_belief)
         
         self.root: BeliefNode = BeliefNode(
             belief=initial_belief,
@@ -144,7 +144,8 @@ class AEMS2(OnlineSolver):
                 prob_arc_val = self.P_o_b_a(bn, ai, oi)
                 
                 # Calculate new belief
-                new_belief = self.NewBelief(bn=bn)
+                # TODO!! Should oi be from the current observation or from the past (bn.oi)?
+                new_belief = self.NewBelief(bn=bn, ai=ai, oi=oi)
                 
                 # Use heuristics to get U and L
                 L = self.lb_solver.getValue(new_belief)
@@ -197,8 +198,19 @@ class AEMS2(OnlineSolver):
     def P_o_b_a(self, bn: BeliefNode, ai: int, oi: int) -> float:
         return 0.0
     
-    def NewBelief(self, bn: BeliefNode):
-        return []
+    # This calculates b'(s') using EQ 1 from the paper
+    def NewBelief(self, bn: BeliefNode, ai: int, oi: int):
+        b_prime = np.zeros(len(self.pomdp.states))
+        
+        for s_prime in range(len(self.pomdp.states)):
+            O = self.pomdp.O[ai, s_prime, oi]
+            s_sum = sum((self.pomdp.T[ai, si, s_prime]*bn.belief[si]) for si in range(len(self.pomdp.states)))
+            b_prime[s_prime] = O * s_sum
+        
+        # Apply normalization
+        nf = np.sum(b_prime)
+        b_prime = np.divide(b_prime, nf)
+        return b_prime
     
     #
     # Backtrack
