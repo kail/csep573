@@ -27,7 +27,8 @@ class OnlineSolver:
         time_step = 0
         Max_abs_reward = np.max(np.abs(solver.pomdp.R))
         while (Max_abs_reward * (solver.pomdp.discount ** time_step) > solver.precision):
-        # each iteration 
+        # each iteration
+            print('Time step: %s' % time_step)
             start = time.time()
             while (time.time() - start < solver.time_limit):
                 is_expanded = solver.expandOneNode()
@@ -40,6 +41,8 @@ class OnlineSolver:
             total_reward += reward * (solver.pomdp.discount ** time_step)
             time_step += 1
             solver.updateRoot(action, observation)
+        
+        print('Total reward: %s' % total_reward)
         return total_reward
     
     def expandOneNode(self):

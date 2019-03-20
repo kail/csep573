@@ -72,6 +72,10 @@ class AEMS2(OnlineSolver):
         initial_L = self.lb_solver.getValue(initial_belief)
         initial_U = self.ub_solver.getValue(initial_belief)
         
+        # After updating root, we increment this!
+        self.depthOffset = 0
+        self.rewardConst = self.getRewardConst()
+        
         self.root: BeliefNode = BeliefNode(
             belief=initial_belief,
             parent=None,
@@ -85,6 +89,11 @@ class AEMS2(OnlineSolver):
         self.root.U = initial_U
         self.belief_nodes.add(self.root)
     
+    # Non-changing part of reward
+    def getRewardConst(self):
+        temp = np.multiply(self.pomdp.R[:,:,:,0], self.pomdp.T)
+        sum = np.sum(temp,2)
+        return np.swapaxes(sum,0,1)
     #
     # Choose
     #
@@ -188,15 +197,36 @@ class AEMS2(OnlineSolver):
             new_an.U = U_a
             bn.children.append(new_an)
         
-        # TODO: Does this actually need to happen?
+        # TODO: Does this actually need to happen? Where is this in the paper?
         bn.U = U_a_max
         bn.L = L_a_max
         
     def R_b_a(self, bn: BeliefNode, ai: int) -> float:
-        return 0.0
+        return float(np.dot(bn.belief, self.rewardConst[:,ai]))
+        # ASS = np.einsum('ijkl->ijk', self.pomdp.R)
+        # AS = np.einsum('ijk->ij', ASS)
+        # S = AS[ai]
+        # res = np.dot(S, bn.belief)
+        # return float(res)
     
+        # total = 0.0
+        # for si in range(len(self.pomdp.states)):
+        #     # What should these values be???
+        #     total += self.pomdp.R[ai, si, 0, 0]
+        # return total
+    
+    # Calculates EQ 3 in the paper
     def P_o_b_a(self, bn: BeliefNode, ai: int, oi: int) -> float:
-        return 0.0
+        # TODO: This is probably wrong!
+        # total = 0.0
+        # for s_prime in range(len(self.pomdp.states)):
+        #     O = self.pomdp.O[ai, s_prime, oi]
+        #     s_sum = sum(self.pomdp.T[ai, si, s_prime]*bn.belief[si] for si in range(len(self.pomdp.states)))
+        #     total += O * s_sum
+        # return total
+        current_belief = np.matmul(bn.belief, self.pomdp.T[ai, :, :])
+        current_belief = np.dot(current_belief , self.pomdp.O[ai, :, oi])
+        return float(current_belief)
     
     # This calculates b'(s') using EQ 1 from the paper
     def NewBelief(self, bn: BeliefNode, ai: int, oi: int):
@@ -209,7 +239,8 @@ class AEMS2(OnlineSolver):
         
         # Apply normalization
         nf = np.sum(b_prime)
-        b_prime = np.divide(b_prime, nf)
+        if nf:
+            b_prime = np.divide(b_prime, nf)
         return b_prime
     
     #
@@ -255,6 +286,9 @@ class AEMS2(OnlineSolver):
         
         # Backtrack
         self.backtrack(bn=best_fringe_node, L_old=L_old, U_old=U_old)
+        
+        # Consider using termination condition
+        return True
 
     def chooseAction(self) -> int:
         """
@@ -263,8 +297,6 @@ class AEMS2(OnlineSolver):
         if self.root.chosen_action_index is not None:
             return self.root.chosen_action_index
         
-        # This should not execute...
-        print('WE SHOULDNT GET HERE')
         max_U = float('-inf')
         max_ai = -1
         for ai, an in enumerate(self.root.children):
@@ -284,5 +316,9 @@ class AEMS2(OnlineSolver):
         throwaway_action_nodes = [an for an in self.root.children if an != chosen_an]
         chosen_bn = chosen_an.children[observation]
         throwaway_belief_nodes = [bn for bn in chosen_an.children if bn != chosen_bn]
+        
+        # Update root
+        self.belief_nodes.remove(self.root)
         self.root = chosen_bn
         self.root.parent = None
+        self.depthOffset += 1
