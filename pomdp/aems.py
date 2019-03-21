@@ -74,6 +74,7 @@ class AEMS2(OnlineSolver):
         
         # After updating root, we increment this!
         self.depthOffset = 0
+        self.gammaDivisor = 1.0
         self.rewardConst = self.getRewardConst()
         
         self.root: BeliefNode = BeliefNode(
@@ -91,9 +92,9 @@ class AEMS2(OnlineSolver):
     
     # Non-changing part of reward
     def getRewardConst(self):
-        temp = np.multiply(self.pomdp.R[:,:,:,0], self.pomdp.T)
-        sum = np.sum(temp,2)
-        return np.swapaxes(sum,0,1)
+        RT = np.multiply(self.pomdp.R[:,:,:,0], self.pomdp.T)
+        sum = np.sum(RT, 2)
+        return np.swapaxes(sum, 0, 1)
     #
     # Choose
     #
@@ -174,7 +175,7 @@ class AEMS2(OnlineSolver):
                     belief=new_belief,
                     parent=new_an,
                     depth=bn.depth+1,
-                    gamma_d=bn.gamma_d * self.pomdp.discount,
+                    gamma_d=bn.gamma_d * self.pomdp.discount / self.gammaDivisor,  # divisor for updateRoot
                     oi=oi,
                     obs_prob=prob_arc_val,
                     obs_prob_cumulative=obs_prob_cumulative,
@@ -202,7 +203,7 @@ class AEMS2(OnlineSolver):
         bn.L = L_a_max
         
     def R_b_a(self, bn: BeliefNode, ai: int) -> float:
-        return float(np.dot(bn.belief, self.rewardConst[:,ai]))
+        return float(np.dot(bn.belief, self.rewardConst[:, ai]))
         # ASS = np.einsum('ijkl->ijk', self.pomdp.R)
         # AS = np.einsum('ijk->ij', ASS)
         # S = AS[ai]
@@ -225,7 +226,7 @@ class AEMS2(OnlineSolver):
         #     total += O * s_sum
         # return total
         current_belief = np.matmul(bn.belief, self.pomdp.T[ai, :, :])
-        current_belief = np.dot(current_belief , self.pomdp.O[ai, :, oi])
+        current_belief = np.dot(current_belief, self.pomdp.O[ai, :, oi])
         return float(current_belief)
     
     # This calculates b'(s') using EQ 1 from the paper
@@ -322,3 +323,4 @@ class AEMS2(OnlineSolver):
         self.root = chosen_bn
         self.root.parent = None
         self.depthOffset += 1
+        self.gammaDivisor *= self.pomdp.discount
